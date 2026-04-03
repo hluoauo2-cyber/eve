@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 통장 이자 계산기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --border-md: rgba(0,0,0,0.14);
+    --text: #1a1a1a;
+    --text-2: #6b6b6b;
+    --text-3: #a8a8a8;
+    --blue: #1a6ef5;
+    --blue-bg: #eef3ff;
+    --blue-text: #1a4fa3;
+    --green: #1a8a5a;
+    --green-bg: #e8f5ee;
+    --green-text: #145c3c;
+    --red: #c93030;
+    --red-bg: #fceaea;
+    --red-text: #8b1f1f;
+    --amber: #c47a10;
+    --amber-bg: #fef3e2;
+    --amber-text: #7a4c07;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: var(--bg); }
+
+  /* ── SCREENS ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.25rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar-title { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  .topbar-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-md);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 20px; color: var(--text); line-height: 1;
+    transition: background 0.15s;
+  }
+  .topbar-btn:hover { background: var(--bg); }
+  .topbar-back {
+    font-size: 13px; color: var(--text-2);
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; gap: 4px; padding: 4px 0;
+  }
+
+  /* ── LIST ── */
+  .list-body { padding: 1rem 1rem 5rem; }
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--text-3); text-transform: uppercase;
+    padding: 0.5rem 0.25rem 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .empty-hint {
+    text-align: center;
+    padding: 3.5rem 1rem;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 2;
+  }
+  .empty-hint .big { font-size: 32px; margin-bottom: 0.5rem; }
+
+  /* ── CARD ── */
+  .acct-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1rem 1.1rem;
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.12s;
+    box-shadow: var(--shadow);
+  }
+  .acct-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.09); transform: translateY(-1px); }
+  .acct-card:active { transform: scale(0.99); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.65rem; }
+  .card-name { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .card-meta { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+
+  .badge {
+    font-size: 10.5px; font-weight: 600;
+    padding: 3px 8px; border-radius: 99px;
+    white-space: nowrap; margin-left: 8px; flex-shrink: 0;
+  }
+  .badge-blue { background: var(--blue-bg); color: var(--blue-text); }
+  .badge-green { background: var(--green-bg); color: var(--green-text); }
+  .badge-amber { background: var(--amber-bg); color: var(--amber-text); }
+  .badge-gray { background: #f0f0ee; color: #666; }
+
+  .card-amounts { display: flex; gap: 0; }
+  .amt-col { flex: 1; }
+  .amt-col + .amt-col { padding-left: 1rem; border-left: 1px solid var(--border); margin-left: 1rem; }
+  .amt-label { font-size: 10.5px; color: var(--text-3); margin-bottom: 2px; }
+  .amt-val { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+  .amt-val.blue { color: var(--blue); }
+  .amt-val.green { color: var(--green); }
+  .amt-diff { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .amt-diff.pos { color: var(--green); }
+
+  .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px solid var(--border); }
+  .card-dates { font-size: 11px; color: var(--text-2); }
+  .dday { font-size: 11.5px; font-weight: 600; }
+  .dday.blue { color: var(--blue); }
+  .dday.green { color: var(--green); }
+  .dday.gray { color: var(--text-3); }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed; bottom: 1.5rem; right: 50%;
+    transform: translateX(calc(50% - 215px + 1rem));
+    background: var(--text); color: white;
+    border: none; border-radius: 99px;
+    padding: 0.75rem 1.4rem;
+    font-size: 13.5px; font-weight: 600; font-family: inherit;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+    transition: transform 0.15s, box-shadow 0.15s;
+    z-index: 20;
+  }
+  .fab:hover { transform: translateX(calc(50% - 215px + 1rem)) translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.28); }
+
+  /* ── DETAIL ── */
+  .detail-body { padding: 1rem 1rem 5rem; }
+
+  .detail-header {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+  .detail-name { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 4px; }
+  .detail-meta { font-size: 12px; color: var(--text-2); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1rem; }
+  .stat-box {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+  }
+  .stat-lbl { font-size: 11px; color: var(--text-3); margin-bottom: 3px; }
+  .stat-v { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .stat-v.blue { color: var(--blue); }
+  .stat-v.green { color: var(--green); }
+  .stat-v.red { color: var(--red); }
+
+  .result-block {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+  .block-title { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+  .result-row .rl { color: var(--text-2); }
+  .result-row .rv { font-weight: 500; }
+  .result-row .rv.green { color: var(--green); }
+  .result-row .rv.red { color: var(--red); }
+  .result-total { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 0; margin-top: 6px; border-top: 1px solid var(--border); }
+  .result-total .rl { font-size: 14px; font-weight: 600; }
+  .result-total .rv { font-size: 17px; font-weight: 700; color: var(--blue); }
+
+  .deposit-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .deposit-item:last-child { border-bottom: none; }
+  .dep-left { display: flex; align-items: center; gap: 8px; }
+  .dep-type-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-in { background: var(--blue); }
+  .dot-out { background: var(--red); }
+  .dot-int { background: var(--green); }
+  .dep-date { font-size: 12px; color: var(--text-2); }
+  .dep-label { font-size: 12px; color: var(--text-3); }
+  .dep-amount { font-size: 13px; font-weight: 600; }
+  .dep-amount.in { color: var(--text); }
+  .dep-amount.out { color: var(--red); }
+  .dep-amount.int { color: var(--green); }
+
+  .tier-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-range { color: var(--text-2); }
+  .tier-rate { font-weight: 600; color: var(--blue); }
+
+  .delete-btn {
+    width: 100%; padding: 13px;
+    border: 1px solid #f5c0c0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--red);
+    font-size: 13.5px; font-weight: 500; font-family: inherit;
+    cursor: pointer; margin-top: 0.5rem;
+    transition: background 0.15s;
+  }
+  .delete-btn:hover { background: var(--red-bg); }
+
+  /* ── FORM ── */
+  .form-body { padding: 1rem 1rem 5rem; }
+  .form-section {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+  .form-section-title { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .field { margin-bottom: 0.85rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 5px; font-weight: 500; }
+  .field input, .field select {
+    width: 100%; padding: 9px 11px;
+    border: 1px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-family: inherit;
+    color: var(--text); background: var(--bg);
+    outline: none; transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--blue); background: white; }
+  .field-row { display: flex; gap: 8px; }
+  .field-row .field { flex: 1; margin-bottom: 0; }
+
+  .type-toggle { display: flex; gap: 8px; }
+  .type-btn {
+    flex: 1; padding: 9px;
+    border: 1.5px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer; text-align: center;
+    transition: all 0.15s; color: var(--text-2);
+  }
+  .type-btn.active-savings { border-color: var(--blue); background: var(--blue-bg); color: var(--blue-text); }
+  .type-btn.active-parking { border-color: var(--green); background: var(--green-bg); color: var(--green-text); }
+
+  .deposit-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .deposit-row input, .deposit-row select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    color: var(--text); background: var(--bg);
+    outline: none;
+  }
+  .deposit-row input:focus, .deposit-row select:focus { border-color: var(--blue); background: white; }
+  .dep-date-input { flex: 2; min-width: 0; }
+  .dep-type-sel { flex: 1.2; min-width: 0; }
+  .dep-amt-input { flex: 2; min-width: 0; }
+  .dep-remove {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--border-md);
+    background: var(--bg);
+    color: var(--text-2); font-size: 16px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .dep-remove:hover { background: var(--red-bg); border-color: #f5c0c0; color: var(--red); }
+  .add-row-btn {
+    width: 100%; padding: 8px;
+    border: 1px dashed var(--border-md);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-2); font-size: 13px; font-family: inherit;
+    cursor: pointer; margin-top: 4px;
+    transition: all 0.15s;
+  }
+  .add-row-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+
+  .tier-form-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .tier-form-row input {
+    padding: 8px 10px;
+    border: 1px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit;
+    color: var(--text); background: var(--bg);
+    outline: none; flex: 1; min-width: 0;
+  }
+  .tier-form-row input:focus { border-color: var(--green); background: white; }
+  .tier-sep { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
+
+  .save-btn {
+    width: 100%; padding: 14px;
+    background: var(--text); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 600; font-family: inherit;
+    cursor: pointer; margin-top: 0.25rem;
+    transition: opacity 0.15s;
+  }
+  .save-btn:hover { opacity: 0.85; }
+
+  .savings-only, .parking-only { transition: all 0.15s; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1a1a1a; color: white;
+    padding: 10px 18px; border-radius: 99px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.25s;
+    pointer-events: none; white-space: nowrap; z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 50;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 430px;
+    padding: 1.25rem;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 0.5rem; }
+  .modal-desc { font-size: 13px; color: var(--text-2); margin-bottom: 1rem; }
+  .modal-actions { display: flex; gap: 8px; }
+  .modal-cancel { flex: 1; padding: 12px; border: 1px solid var(--border-md); border-radius: var(--radius-sm); background: transparent; font-size: 14px; font-family: inherit; cursor: pointer; }
+  .modal-confirm { flex: 1; padding: 12px; border: none; border-radius: var(--radius-sm); background: var(--red); color: white; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ════════════════ LIST SCREEN ════════════════ -->
+  <div class="screen active" id="screen-list">
+    <div class="topbar">
+      <span class="topbar-title">내 통장</span>
+    </div>
+    <div class="list-body" id="list-body"></div>
+    <button class="fab" onclick="goForm()">＋ 통장 추가</button>
+  </div>
+
+  <!-- ════════════════ DETAIL SCREEN ════════════════ -->
+  <div class="screen" id="screen-detail">
+    <div class="topbar">
+      <button class="topbar-back" onclick="goList()">← 목록</button>
+      <span class="topbar-title" id="detail-topbar-title"></span>
+      <div style="width:60px"></div>
+    </div>
+    <div class="detail-body" id="detail-body"></div>
+  </div>
+
+  <!-- ════════════════ FORM SCREEN ════════════════ -->
+  <div class="screen" id="screen-form">
+    <div class="topbar">
+      <button class="topbar-back" onclick="goList()">← 취소</button>
+      <span class="topbar-title">새 통장 추가</span>
+      <div style="width:60px"></div>
+    </div>
+    <div class="form-body">
+
+      <div class="form-section">
+        <div class="form-section-title">통장 종류</div>
+        <div class="type-toggle">
+          <button class="type-btn active-savings" id="btn-savings" onclick="setType('savings')">적금</button>
+          <button class="type-btn" id="btn-parking" onclick="setType('parking')">파킹통장</button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">기본 정보</div>
+        <div class="field">
+          <label>통장 이름</label>
+          <input type="text" id="f-name" placeholder="예: 청년희망적금">
+        </div>
+        <div class="field savings-only" id="f-months-wrap">
+          <label>가입 개월수</label>
+          <input type="number" id="f-months" placeholder="12" min="1" oninput="autoCalcEndDate()">
+        </div>
+        <div class="field savings-only" id="f-start-wrap">
+          <label>가입일자</label>
+          <input type="date" id="f-start" oninput="autoCalcEndDate()">
+        </div>
+        <div class="field savings-only" id="f-end-wrap">
+          <label>만기일자 <span style="font-size:11px;color:var(--text-3)">(자동 계산)</span></label>
+          <input type="date" id="f-end">
+        </div>
+        <div class="field parking-only" id="f-cycle-wrap" style="display:none">
+          <label>이자 지급 주기</label>
+          <select id="f-cycle">
+            <option value="daily">매일</option>
+            <option value="monthly" selected>매월</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 적금 이자율 -->
+      <div class="form-section savings-only" id="savings-rate-section">
+        <div class="form-section-title">이자율</div>
+        <div class="field">
+          <label>연 이자율 (%)</label>
+          <input type="number" id="f-rate" placeholder="5.0" step="0.01">
+        </div>
+      </div>
+
+      <!-- 파킹 구간 이자율 -->
+      <div class="form-section parking-only" id="parking-rate-section" style="display:none">
+        <div class="form-section-title">구간별 이자율</div>
+        <div id="tier-rows"></div>
+        <button class="add-row-btn" onclick="addTierRow()">＋ 구간 추가</button>
+      </div>
+
+      <!-- 입금 내역 -->
+      <div class="form-section">
+        <div class="form-section-title savings-only" id="dep-title-savings">입금 내역</div>
+        <div class="form-section-title parking-only" id="dep-title-parking" style="display:none">거래 내역</div>
+        <div id="deposit-rows"></div>
+        <button class="add-row-btn" onclick="addDepositRow()">＋ 내역 추가</button>
+      </div>
+
+      <button class="save-btn" onclick="saveAccount()">저장</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal-sheet">
+    <div class="modal-title">통장을 삭제할까요?</div>
+    <div class="modal-desc">삭제하면 모든 내역이 사라지고 되돌릴 수 없어요.</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">취소</button>
+      <button class="modal-confirm" id="modal-confirm-btn">삭제</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let accounts = [];
+let currentType = 'savings';
+let deleteTargetId = null;
+
+function loadData() {
+  try { accounts = JSON.parse(localStorage.getItem('accounts') || '[]'); } catch(e) { accounts = []; }
+}
+function saveData() {
+  localStorage.setItem('accounts', JSON.stringify(accounts));
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ══════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function goList() { renderList(); showScreen('list'); }
+function goForm() { resetForm(); showScreen('form'); }
+function goDetail(id) { renderDetail(id); showScreen('detail'); }
+
+// ══════════════════════════════════════════
+// CALCULATIONS
+// ══════════════════════════════════════════
+function calcSavings(acct) {
+  const deposits = acct.deposits || [];
+  const endDate = new Date(acct.endDate);
+  let totalPrincipal = 0;
+  let totalInterestBefore = 0;
+
+  deposits.forEach(dep => {
+    const amt = parseFloat(dep.amount) || 0;
+    const depDate = new Date(dep.date);
+    totalPrincipal += amt;
+    const days = Math.max(0, Math.floor((endDate - depDate) / 86400000));
+    const interest = amt * (parseFloat(acct.rate) / 100) * (days / 365);
+    totalInterestBefore += interest;
+  });
+
+  const tax = totalInterestBefore * 0.154;
+  const interestAfter = totalInterestBefore - tax;
+  const total = totalPrincipal + interestAfter;
+
+  return { totalPrincipal, totalInterestBefore, tax, interestAfter, total };
+}
+
+function calcParking(acct) {
+  const txs = (acct.deposits || []).slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+  const tiers = acct.tiers || [];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let balance = 0;
+  let totalInterestBefore = 0;
+
+  for (let i = 0; i < txs.length; i++) {
+    const tx = txs[i];
+    const txDate = new Date(tx.date);
+    const nextDate = i + 1 < txs.length ? new Date(txs[i+1].date) : today;
+    const days = Math.max(0, Math.floor((nextDate - txDate) / 86400000));
+
+    const amt = parseFloat(tx.amount) || 0;
+    if (tx.type === 'in') balance += amt;
+    else if (tx.type === 'out') balance -= amt;
+    else if (tx.type === 'interest') {
+      totalInterestBefore += amt;
+      balance += amt;
+      continue;
+    }
+
+    if (days > 0 && balance > 0) {
+      let tierInterest = 0;
+      let remaining = balance;
+      const sortedTiers = tiers.slice().sort((a,b) => parseFloat(a.from) - parseFloat(b.from));
+      for (let t = 0; t < sortedTiers.length; t++) {
+        const tierFrom = parseFloat(sortedTiers[t].from) || 0;
+        const tierTo = t + 1 < sortedTiers.length ? parseFloat(sortedTiers[t+1].from) : Infinity;
+        const tierRate = parseFloat(sortedTiers[t].rate) || 0;
+        if (remaining <= 0) break;
+        const inTier = Math.min(remaining, tierTo - tierFrom);
+        if (inTier > 0) {
+          tierInterest += inTier * (tierRate / 100) * (days / 365);
+          remaining -= inTier;
+        }
+      }
+      totalInterestBefore += tierInterest;
+    }
+  }
+
+  const tax = totalInterestBefore * 0.154;
+  const interestAfter = totalInterestBefore - tax;
+  const totalIn = txs.filter(t => t.type === 'in').reduce((s,t) => s + (parseFloat(t.amount)||0), 0);
+  const totalOut = txs.filter(t => t.type === 'out').reduce((s,t) => s + (parseFloat(t.amount)||0), 0);
+  const totalPrincipal = totalIn - totalOut;
+
+  return { balance, totalPrincipal, totalInterestBefore, tax, interestAfter };
+}
+
+function getMaxRate(acct) {
+  if (acct.type === 'savings') return parseFloat(acct.rate) || 0;
+  const tiers = acct.tiers || [];
+  return tiers.reduce((m, t) => Math.max(m, parseFloat(t.rate)||0), 0);
+}
+
+function getDday(endDate) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(endDate); end.setHours(0,0,0,0);
+  const diff = Math.floor((end - today) / 86400000);
+  if (diff > 0) return { label: 'D-' + diff, cls: 'blue' };
+  if (diff === 0) return { label: 'D-day', cls: 'blue' };
+  return { label: '만기 완료', cls: 'green' };
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR') + '원'; }
+function fmtRate(r) { return parseFloat(r).toFixed(1) + '%'; }
+
+// ══════════════════════════════════════════
+// LIST RENDER
+// ══════════════════════════════════════════
+function renderList() {
+  loadData();
+  const body = document.getElementById('list-body');
+  if (!accounts.length) {
+    body.innerHTML = `<div class="empty-hint"><div class="big">🏦</div>아직 등록된 통장이 없어요<br>아래 버튼으로 첫 통장을 추가해보세요</div>`;
+    return;
+  }
+
+  const active = accounts.filter(a => {
+    if (a.type === 'parking') return true;
+    const diff = Math.floor((new Date(a.endDate) - new Date()) / 86400000);
+    return diff >= 0;
+  });
+  const done = accounts.filter(a => {
+    if (a.type === 'parking') return false;
+    const diff = Math.floor((new Date(a.endDate) - new Date()) / 86400000);
+    return diff < 0;
+  });
+
+  let html = '';
+
+  if (active.length) {
+    html += '<div class="section-label">진행 중</div>';
+    active.forEach(a => { html += renderCard(a); });
+  }
+  if (done.length) {
+    html += '<div class="section-label">만기 완료</div>';
+    done.forEach(a => { html += renderCard(a); });
+  }
+
+  body.innerHTML = html;
+}
+
+function renderCard(acct) {
+  const isSavings = acct.type === 'savings';
+  const maxRate = getMaxRate(acct);
+
+  let principalLabel, principalVal, resultLabel, resultVal, resultDiff, footerLeft, footerRight, badge;
+
+  if (isSavings) {
+    const c = calcSavings(acct);
+    const dday = getDday(acct.endDate);
+    badge = `<span class="badge ${dday.cls === 'green' ? 'badge-gray' : 'badge-blue'}">${dday.cls === 'green' ? '만기완료' : '적금'}</span>`;
+    principalLabel = '총 납입금액';
+    principalVal = fmt(c.totalPrincipal);
+    resultLabel = '세후 예상 수령액';
+    resultVal = `<span class="amt-val blue">${fmt(c.total)}</span>`;
+    resultDiff = `+${fmt(c.interestAfter)}`;
+    footerLeft = `${acct.startDate} ~ ${acct.endDate}`;
+    footerRight = `<span class="dday ${dday.cls}">${dday.label}</span>`;
+  } else {
+    const c = calcParking(acct);
+    badge = `<span class="badge badge-green">파킹</span>`;
+    principalLabel = '현재 잔액';
+    principalVal = fmt(c.balance);
+    resultLabel = '누적 세후 이자';
+    resultVal = `<span class="amt-val green">${fmt(c.interestAfter)}</span>`;
+    resultDiff = `세전 ${fmt(c.totalInterestBefore)}`;
+    footerLeft = `최고 ${fmtRate(maxRate)}`;
+    footerRight = `<span class="dday gray">${acct.cycle === 'daily' ? '매일 이자' : '매월 이자'}</span>`;
+  }
+
+  return `
+  <div class="acct-card" onclick="goDetail('${acct.id}')">
+    <div class="card-top">
+      <div>
+        <div class="card-name">${acct.name}</div>
+        <div class="card-meta">연 ${fmtRate(maxRate)} · ${isSavings ? acct.months + '개월' : (acct.cycle === 'daily' ? '매일 지급' : '매월 지급')}</div>
+      </div>
+      ${badge}
+    </div>
+    <div class="card-amounts">
+      <div class="amt-col">
+        <div class="amt-label">${principalLabel}</div>
+        <div class="amt-val">${principalVal}</div>
+      </div>
+      <div class="amt-col">
+        <div class="amt-label">${resultLabel}</div>
+        ${resultVal}
+        <div class="amt-diff pos">${resultDiff}</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="card-dates">${footerLeft}</span>
+      ${footerRight}
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+// DETAIL RENDER
+// ══════════════════════════════════════════
+function renderDetail(id) {
+  loadData();
+  const acct = accounts.find(a => a.id === id);
+  if (!acct) return;
+
+  document.getElementById('detail-topbar-title').textContent = acct.name;
+  const body = document.getElementById('detail-body');
+  const isSavings = acct.type === 'savings';
+  let html = '';
+
+  if (isSavings) {
+    const c = calcSavings(acct);
+    const dday = getDday(acct.endDate);
+
+    html += `
+    <div class="detail-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="detail-name">${acct.name}</div>
+          <div class="detail-meta">단리 · 연 ${fmtRate(acct.rate)} · ${acct.months}개월</div>
+          <div class="detail-meta">${acct.startDate} ~ ${acct.endDate}</div>
+        </div>
+        <span class="badge ${dday.cls === 'green' ? 'badge-gray' : 'badge-blue'}">${dday.label}</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-lbl">총 납입금액</div><div class="stat-v">${fmt(c.totalPrincipal)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">세전 이자</div><div class="stat-v">${fmt(c.totalInterestBefore)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">세금 (15.4%)</div><div class="stat-v red">-${fmt(c.tax)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">세후 이자</div><div class="stat-v green">${fmt(c.interestAfter)}</div></div>
+      </div>
+    </div>
+    <div class="result-block">
+      <div class="block-title">만기 수령 예정</div>
+      <div class="result-row"><span class="rl">납입 원금</span><span class="rv">${fmt(c.totalPrincipal)}</span></div>
+      <div class="result-row"><span class="rl">세전 이자</span><span class="rv green">+${fmt(c.totalInterestBefore)}</span></div>
+      <div class="result-row"><span class="rl">이자소득세 (15.4%)</span><span class="rv red">-${fmt(c.tax)}</span></div>
+      <div class="result-total"><span class="rl">세후 실 수령액</span><span class="rv">${fmt(c.total)}</span></div>
+    </div>`;
+  } else {
+    const c = calcParking(acct);
+    const tiers = acct.tiers || [];
+    const maxRate = getMaxRate(acct);
+
+    html += `
+    <div class="detail-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="detail-name">${acct.name}</div>
+          <div class="detail-meta">파킹통장 · 최고 ${fmtRate(maxRate)} · ${acct.cycle === 'daily' ? '매일 지급' : '매월 지급'}</div>
+        </div>
+        <span class="badge badge-green">파킹</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-lbl">현재 잔액</div><div class="stat-v blue">${fmt(c.balance)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">순 입금 원금</div><div class="stat-v">${fmt(c.totalPrincipal)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">세금 (15.4%)</div><div class="stat-v red">-${fmt(c.tax)}</div></div>
+        <div class="stat-box"><div class="stat-lbl">세후 이자</div><div class="stat-v green">${fmt(c.interestAfter)}</div></div>
+      </div>
+    </div>
+    <div class="result-block">
+      <div class="block-title">누적 이자 현황 (오늘 기준)</div>
+      <div class="result-row"><span class="rl">누적 세전 이자</span><span class="rv green">+${fmt(c.totalInterestBefore)}</span></div>
+      <div class="result-row"><span class="rl">이자소득세 (15.4%)</span><span class="rv red">-${fmt(c.tax)}</span></div>
+      <div class="result-total"><span class="rl">누적 세후 이자</span><span class="rv">${fmt(c.interestAfter)}</span></div>
+    </div>
+    <div class="result-block">
+      <div class="block-title">구간별 이자율</div>
+      ${tiers.sort((a,b)=>parseFloat(a.from)-parseFloat(b.from)).map((t,i) => {
+        const nextFrom = tiers[i+1] ? parseFloat(tiers[i+1].from) : null;
+        const rangeStr = nextFrom ? `${Number(t.from).toLocaleString()}원 ~ ${Number(nextFrom).toLocaleString()}원` : `${Number(t.from).toLocaleString()}원 초과`;
+        return `<div class="tier-row"><span class="tier-range">${rangeStr}</span><span class="tier-rate">${fmtRate(t.rate)}</span></div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // 거래 내역
+  const deps = (acct.deposits || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+  html += `<div class="result-block"><div class="block-title">${isSavings ? '입금 내역' : '거래 내역'}</div>`;
+  if (!deps.length) {
+    html += `<div style="text-align:center;padding:1rem;color:var(--text-3);font-size:13px">내역이 없어요</div>`;
+  } else {
+    deps.forEach(dep => {
+      const amt = parseFloat(dep.amount) || 0;
+      const typeInfo = dep.type === 'out'
+        ? { label: '출금', cls: 'out', dot: 'dot-out', sign: '-' }
+        : dep.type === 'interest'
+        ? { label: '이자', cls: 'int', dot: 'dot-int', sign: '+' }
+        : { label: '입금', cls: 'in', dot: 'dot-in', sign: '+' };
+      html += `
+      <div class="deposit-item">
+        <div class="dep-left">
+          <div class="dep-type-dot ${typeInfo.dot}"></div>
+          <div>
+            <div class="dep-date">${dep.date}</div>
+            <div class="dep-label">${typeInfo.label}${dep.memo ? ' · ' + dep.memo : ''}</div>
+          </div>
+        </div>
+        <span class="dep-amount ${typeInfo.cls}">${typeInfo.sign}${Math.round(amt).toLocaleString()}원</span>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  html += `<button class="delete-btn" onclick="confirmDelete('${acct.id}')">이 통장 삭제</button>`;
+  body.innerHTML = html;
+}
+
+// ══════════════════════════════════════════
+// FORM
+// ══════════════════════════════════════════
+function setType(type) {
+  currentType = type;
+  document.getElementById('btn-savings').className = 'type-btn' + (type === 'savings' ? ' active-savings' : '');
+  document.getElementById('btn-parking').className = 'type-btn' + (type === 'parking' ? ' active-parking' : '');
+
+  const savingsEls = ['f-months-wrap','f-start-wrap','f-end-wrap','savings-rate-section','dep-title-savings'];
+  const parkingEls = ['f-cycle-wrap','parking-rate-section','dep-title-parking'];
+
+  savingsEls.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = type === 'savings' ? '' : 'none'; });
+  parkingEls.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = type === 'parking' ? '' : 'none'; });
+}
+
+function autoCalcEndDate() {
+  const months = parseInt(document.getElementById('f-months').value);
+  const start = document.getElementById('f-start').value;
+  if (!months || !start) return;
+  const d = new Date(start);
+  d.setMonth(d.getMonth() + months);
+  document.getElementById('f-end').value = d.toISOString().slice(0,10);
+}
+
+let depositRowCount = 0;
+function addDepositRow(date='', type='in', amount='', memo='') {
+  depositRowCount++;
+  const id = 'dep-' + depositRowCount;
+  const div = document.createElement('div');
+  div.className = 'deposit-row';
+  div.id = id;
+  const typeOptions = currentType === 'savings'
+    ? `<option value="in" ${type==='in'?'selected':''}>입금</option>`
+    : `<option value="in" ${type==='in'?'selected':''}>입금</option>
+       <option value="out" ${type==='out'?'selected':''}>출금</option>
+       <option value="interest" ${type==='interest'?'selected':''}>이자</option>`;
+  div.innerHTML = `
+    <input type="date" class="dep-date-input" value="${date}">
+    <select class="dep-type-sel">${typeOptions}</select>
+    <input type="number" class="dep-amt-input" placeholder="금액" value="${amount}">
+    <button class="dep-remove" onclick="document.getElementById('${id}').remove()">×</button>`;
+  document.getElementById('deposit-rows').appendChild(div);
+}
+
+let tierRowCount = 0;
+function addTierRow(from='', rate='') {
+  tierRowCount++;
+  const id = 'tier-' + tierRowCount;
+  const div = document.createElement('div');
+  div.className = 'tier-form-row';
+  div.id = id;
+  div.innerHTML = `
+    <input type="number" placeholder="시작 금액 (원)" value="${from}" style="flex:2">
+    <span class="tier-sep">부터</span>
+    <input type="number" placeholder="금리 %" value="${rate}" style="flex:1.2" step="0.01">
+    <button class="dep-remove" onclick="document.getElementById('${id}').remove()">×</button>`;
+  document.getElementById('tier-rows').appendChild(div);
+}
+
+function resetForm() {
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-months').value = '';
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
+  document.getElementById('f-rate').value = '';
+  document.getElementById('f-cycle').value = 'monthly';
+  document.getElementById('deposit-rows').innerHTML = '';
+  document.getElementById('tier-rows').innerHTML = '';
+  depositRowCount = 0; tierRowCount = 0;
+  setType('savings');
+  addDepositRow();
+  addTierRow(0, '');
+}
+
+function saveAccount() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { showToast('통장 이름을 입력해주세요'); return; }
+
+  const deposits = [];
+  document.querySelectorAll('#deposit-rows .deposit-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    const date = inputs[0].value;
+    const amount = inputs[1].value;
+    const type = sel ? sel.value : 'in';
+    if (date && amount) deposits.push({ date, type, amount });
+  });
+
+  let acct = { id: genId(), name, type: currentType, deposits };
+
+  if (currentType === 'savings') {
+    const months = document.getElementById('f-months').value;
+    const startDate = document.getElementById('f-start').value;
+    const endDate = document.getElementById('f-end').value;
+    const rate = document.getElementById('f-rate').value;
+    if (!months || !startDate || !endDate || !rate) { showToast('모든 항목을 입력해주세요'); return; }
+    Object.assign(acct, { months, startDate, endDate, rate });
+  } else {
+    const cycle = document.getElementById('f-cycle').value;
+    const tiers = [];
+    document.querySelectorAll('#tier-rows .tier-form-row').forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      if (inputs[0].value !== '' && inputs[1].value) {
+        tiers.push({ from: inputs[0].value, rate: inputs[1].value });
+      }
+    });
+    if (!tiers.length) { showToast('이자율 구간을 하나 이상 입력해주세요'); return; }
+    Object.assign(acct, { cycle, tiers });
+  }
+
+  loadData();
+  accounts.push(acct);
+  saveData();
+  showToast('저장되었어요 ✓');
+  setTimeout(goList, 600);
+}
+
+// ══════════════════════════════════════════
+// DELETE
+// ══════════════════════════════════════════
+function confirmDelete(id) {
+  deleteTargetId = id;
+  document.getElementById('delete-modal').classList.add('open');
+  document.getElementById('modal-confirm-btn').onclick = () => {
+    loadData();
+    accounts = accounts.filter(a => a.id !== deleteTargetId);
+    saveData();
+    closeModal();
+    showToast('삭제되었어요');
+    setTimeout(goList, 400);
+  };
+}
+function closeModal() {
+  document.getElementById('delete-modal').classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+loadData();
+renderList();
+showScreen('list');
+</script>
+</body>
+</html>
